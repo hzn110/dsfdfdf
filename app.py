@@ -78,16 +78,22 @@ st.dataframe(movies.head(1), use_container_width=True, hide_index=True)
 candidate_features = [c for c in movies.columns if c not in {"movieCd", "total_audi"}]
 
 st.sidebar.header("모델 설정")
-selected_features = st.sidebar.multiselect(
-    "학습에 사용할 변수",
-    options=candidate_features,
-    default=[
-        c for c in [
-            "openDt", "genre", "nation", "first_scrn", "first_show",
-            "first_date", "peak", "first_week_audi", "days_in_top10"
-        ] if c in candidate_features
-    ],
-)
+default_features = [
+    c for c in [
+        "openDt", "genre", "nation", "first_scrn", "first_show",
+        "first_date", "peak", "first_week_audi", "days_in_top10"
+    ] if c in candidate_features
+]
+
+selected_features = []
+for feature in candidate_features:
+    checked = st.sidebar.checkbox(
+        feature,
+        value=(feature in default_features),
+        key=f"feature_{feature}",
+    )
+    if checked:
+        selected_features.append(feature)
 
 st.sidebar.markdown("---")
 st.sidebar.write("**고정 평가 방식**")
@@ -237,14 +243,14 @@ fig = go.Figure()
 
 # 실제값/예측값이 모두 양수인 일반 점
 positive_pred = y_pred > 0
-normal_mask = positive_pred & (y_test.to_numpy() > 0) & ~low_mask.to_numpy()
+normal_mask = positive_pred & (y_test.to_numpy() > 0) & ~low_mask
 
 fig.add_trace(go.Scatter(
     x=y_test.to_numpy()[normal_mask],
     y=y_pred[normal_mask],
     mode="markers",
     name="테스트 영화",
-    text=result.loc[normal_mask, "movieNm"].astype(str),
+    text=result.iloc[np.flatnonzero(normal_mask)]["movieNm"].astype(str),
     hovertemplate=(
         "<b>%{text}</b><br>"
         "실제: %{x:,.0f}명<br>"
@@ -260,7 +266,7 @@ if low_plot_mask.any():
         y=np.full(int(low_plot_mask.sum()), 1000.0),
         mode="markers",
         name="예측 < 1,000명",
-        text=result.loc[low_plot_mask, "movieNm"].astype(str),
+        text=result.iloc[np.flatnonzero(low_plot_mask)]["movieNm"].astype(str),
         hovertemplate=(
             "<b>%{text}</b><br>"
             "실제: %{x:,.0f}명<br>"
